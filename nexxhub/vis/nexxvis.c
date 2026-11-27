@@ -3,7 +3,7 @@
  *
  * - renders straight to the HDMI output through DRM/GBM/EGL (GLES 3)
  * - audio: monitor of the PipeWire sink (default "speakereq2x2") via `pw-record --raw`,
- *   2048-point FFT -> 512 log bins (30 Hz..16 kHz) + 512 waveform samples
+ *   8192-point FFT -> 512 log bins (30 Hz..16 kHz) + 512 waveform samples
  * - shaders: Shadertoy style `void mainImage(out vec4 c, in vec2 p)` files in NV_SHADERS
  *   uniforms: iResolution, iTime, iTimeDelta, iFrame, iChannel0 (512x2: row0 = spectrum,
  *   row1 = waveform, sample at y=0.25 / 0.75), iLevel (bass, mid, treble, overall; 0..1 with AGC)
@@ -41,7 +41,7 @@
 #include "beatstate.h"
 #include "beatdetect.h"
 
-#define FFT_N 2048
+#define FFT_N 8192
 #define BINS 512
 #define MAX_SHADERS 64
 #define MAX_TILES 8
@@ -546,6 +546,51 @@ static int analysis_update(Analysis *A, float dt) {
     return stale;
 }
 
+/* The audio analysis is decoupled from the renderer: this worker runs the
+   FFT, levels, bands, elements and beat detector at 50 Hz and publishes a
+   snapshot, so the visualizer's audio resolution no longer falls with the
+   frame rate.  File I/O and FFT work stay off the render thread. */
+typedef struct {
+    float spec[BINS], wave[BINS];
+    float level[4], band8[8], elem[4];
+    BeatDetector bd;
+    int stale;
+} AnalysisSnap;
+
+static Analysis g_an;
+static BeatDetector g_bd;
+static AnalysisSnap g_snap;
+static pthread_mutex_t g_snap_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+static void *analysis_thread(void *arg) {
+    (void)arg;
+    analysis_init(&g_an);
+    bd_init(&g_bd, now_s());
+    double last = now_s();
+    while (!g_quit) {
+        struct timespec ts = {0, 20 * 1000 * 1000};      /* 50 Hz */
+        nanosleep(&ts, NULL);
+        double now = now_s();
+        double dt = now - last;
+        last = now;
+        if (dt <= 0.0) dt = 0.02;
+        if (dt > 0.1) dt = 0.1;
+        int stale = analysis_update(&g_an, (float)dt);
+        if (stale) bd_set_stale(&g_bd);
+        else bd_update(&g_bd, g_an.mag, BD_MAX_BINS, now);
+        pthread_mutex_lock(&g_snap_mtx);
+        memcpy(g_snap.spec, g_an.spec, sizeof g_snap.spec);
+        memcpy(g_snap.wave, g_an.wave, sizeof g_snap.wave);
+        memcpy(g_snap.level, g_an.level, sizeof g_snap.level);
+        memcpy(g_snap.band8, g_an.band8_level, sizeof g_snap.band8);
+        memcpy(g_snap.elem, g_an.elem, sizeof g_snap.elem);
+        g_snap.bd = g_bd;
+        g_snap.stale = stale;
+        pthread_mutex_unlock(&g_snap_mtx);
+    }
+    return NULL;
+}
+
 /* ------------------------------------------------------------------ DRM / GBM / EGL */
 typedef struct {
     int fd;
@@ -986,6 +1031,8 @@ int main(void) {
     float scale = atof(envs("NV_SCALE", "0.5"));
     double cycle = atof(envs("NV_CYCLE", "300"));
     int fpslog = atoi(envs("NV_FPS_LOG", "0"));
+    double dyn_min = atof(envs("NV_DYN_FPS_MIN", "12"));
+    double dyn_max = atof(envs("NV_DYN_FPS_MAX", "18"));
     if (scale < 0.2f || scale > 1.0f) scale = 0.5f;
     int mw = 1920, mh = 1080, mhz = 60;
     sscanf(mode, "%dx%d@%d", &mw, &mh, &mhz);
@@ -1057,12 +1104,12 @@ int main(void) {
     fprintf(stderr, "nexxvis: %d menu tiles\n", ntiles);
 
     load_shaders(shdir);
-    Analysis A; analysis_init(&A);
-    BeatDetector bd; bd_init(&bd, now_s());
+    pthread_t ant; pthread_create(&ant, NULL, analysis_thread, NULL);
     unsigned char texbuf[BINS * 2];
 
     int cur = 0, frame = 0;
     double t0 = now_s(), tprev = t0, shader_start = t0, fade = 0.0, menu_a = 0.0, fps_t = t0; int fps_n = 0;
+    double dyn_t = t0; int dyn_n = 0; float dyn_scale = 1.0f;
     Img np = {0}; double np_a = 0.0, np_check = 0.0; int np_have = 0;
     Img cdj = {0}; double cdj_a = 0.0, cdj_check = 0.0; int cdj_have = 0, cdj_was = 0;
     int switching = 0;
@@ -1090,13 +1137,14 @@ int main(void) {
         if (g_reload) { g_reload = 0; load_shaders(shdir); cur = 0; shader_start = now_s(); pinned[0] = 0; pinned_idx = -1; shader_check = 0; }
         double t = now_s(), dt = t - tprev; tprev = t;
         if (dt > 0.1) dt = 0.1;
-        int audio_stale = analysis_update(&A, (float)dt);
-        if (audio_stale) bd_set_stale(&bd);
-        else bd_update(&bd, A.mag, BD_MAX_BINS, t);
+        AnalysisSnap S;
+        pthread_mutex_lock(&g_snap_mtx);
+        S = g_snap;
+        pthread_mutex_unlock(&g_snap_mtx);
 
         for (int i = 0; i < BINS; i++) {
-            texbuf[i] = (unsigned char)(A.spec[i] * 255.0f);
-            texbuf[BINS + i] = (unsigned char)(A.wave[i] * 255.0f);
+            texbuf[i] = (unsigned char)(S.spec[i] * 255.0f);
+            texbuf[BINS + i] = (unsigned char)(S.wave[i] * 255.0f);
         }
         glBindTexture(GL_TEXTURE_2D, atex);
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -1123,10 +1171,10 @@ int main(void) {
             beat_source = 2;
             dj_track = bs.track_id;
         } else {
-            double ab = bd_bpm(&bd), ac = bd_confidence(&bd);
+            double ab = bd_bpm(&S.bd), ac = bd_confidence(&S.bd);
             if (ab > 0.0 && ac > 0.0) {
-                beat_pulse = bd_pulse(&bd, t);
-                beat_phase = bd_phase(&bd, t);
+                beat_pulse = bd_pulse(&S.bd, t);
+                beat_phase = bd_phase(&S.bd, t);
                 beat_bpm = ab;
                 beat_conf = ac;
                 beat_source = 1;
@@ -1188,10 +1236,10 @@ int main(void) {
         if (t >= spec_check) {
             for (int k = 0; k < 32; k++) {
                 float sum = 0.0f;
-                for (int j = 0; j < 16; j++) sum += A.spec[k * 16 + j];
+                for (int j = 0; j < 16; j++) sum += S.spec[k * 16 + j];
                 specbuf[k] = (unsigned char)(sum / 16.0f * 255.0f);
             }
-            for (int k = 0; k < 4; k++) specbuf[32 + k] = (unsigned char)(A.level[k] * 255.0f);
+            for (int k = 0; k < 4; k++) specbuf[32 + k] = (unsigned char)(S.level[k] * 255.0f);
             char tmp[512];
             snprintf(tmp, sizeof tmp, "%s.tmp", specfile);
             FILE *sf = fopen(tmp, "wb");
@@ -1200,10 +1248,10 @@ int main(void) {
         }
         if (elemlog && t >= elem_check) {
             fprintf(stderr, "nexxvis: elem k %.2f s %.2f h %.2f v %.2f | bands %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f\n",
-                    A.elem[0], A.elem[1], A.elem[2], A.elem[3],
-                    A.band8_level[0], A.band8_level[1], A.band8_level[2],
-                    A.band8_level[3], A.band8_level[4], A.band8_level[5],
-                    A.band8_level[6], A.band8_level[7]);
+                    S.elem[0], S.elem[1], S.elem[2], S.elem[3],
+                    S.band8[0], S.band8[1], S.band8[2],
+                    S.band8[3], S.band8[4], S.band8[5],
+                    S.band8[6], S.band8[7]);
             elem_check = t + 1.0;
         }
         if (t >= genome_check) {
@@ -1294,7 +1342,10 @@ int main(void) {
         /* pass 1: visualizer into FBO (per-shader scale renders into a sub-rectangle) */
         int vw = RW, vh = RH;
         if (g_nviz > 0 && g_viz[cur].scale > 0.05f && g_viz[cur].scale < scale) {
-            vw = (int)(W * g_viz[cur].scale); vh = (int)(H * g_viz[cur].scale);
+            float s = g_viz[cur].scale * dyn_scale;
+            vw = (int)(W * s); vh = (int)(H * s);
+            if (vw < 1) vw = 1;
+            if (vh < 1) vh = 1;
         }
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glViewport(0, 0, vw, vh);
@@ -1307,7 +1358,7 @@ int main(void) {
             glUniform1f(v->uTime, (float)(t - t0));
             glUniform1f(v->uDt, (float)dt);
             glUniform1i(v->uFrame, frame);
-            glUniform4f(v->uLevel, A.level[0], A.level[1], A.level[2], A.level[3]);
+            glUniform4f(v->uLevel, S.level[0], S.level[1], S.level[2], S.level[3]);
             glUniform4f(v->uBeat, (float)beat_pulse, (float)beat_phase,
                         (float)beat_source, (float)beat_conf);
             glUniform1f(v->uBPM, (float)beat_bpm);
@@ -1340,11 +1391,11 @@ int main(void) {
                 so_y *= 1.0f + (cosf(bk) - 1.0f) * wk;
             }
             glUniform4f(v->uSO, so_c, so_s, so_x, so_y);
-            glUniform4f(v->uElements, A.elem[0], A.elem[1], A.elem[2], A.elem[3]);
-            glUniform4f(v->uBandA, A.band8_level[0], A.band8_level[1],
-                        A.band8_level[2], A.band8_level[3]);
-            glUniform4f(v->uBandB, A.band8_level[4], A.band8_level[5],
-                        A.band8_level[6], A.band8_level[7]);
+            glUniform4f(v->uElements, S.elem[0], S.elem[1], S.elem[2], S.elem[3]);
+            glUniform4f(v->uBandA, S.band8[0], S.band8[1],
+                        S.band8[2], S.band8[3]);
+            glUniform4f(v->uBandB, S.band8[4], S.band8[5],
+                        S.band8[6], S.band8[7]);
             glActiveTexture(GL_TEXTURE8); glBindTexture(GL_TEXTURE_2D, dyntex[3]);
             glUniform1i(v->uCh8, 8);
             glActiveTexture(GL_TEXTURE7); glBindTexture(GL_TEXTURE_2D, dyntex[2]);
@@ -1472,6 +1523,18 @@ int main(void) {
 
         if (kms_present(&K)) { fprintf(stderr, "nexxvis: present failed, exiting\n"); break; }
         frame++; fps_n++;
+        dyn_n++;
+        if (t - dyn_t >= 5.0) {
+            double dfps = dyn_n / (t - dyn_t);
+            float old = dyn_scale;
+            if (dfps < dyn_min && dyn_scale > 0.78f) dyn_scale -= 0.04f;
+            else if (dfps > dyn_max && dyn_scale < 1.0f) dyn_scale += 0.02f;
+            if (dyn_scale < 0.78f) dyn_scale = 0.78f;
+            if (dyn_scale > 1.0f) dyn_scale = 1.0f;
+            if (dyn_scale != old)
+                fprintf(stderr, "nexxvis: dynamic scale %.2f (%.1f fps)\n", dyn_scale, dfps);
+            dyn_t = t; dyn_n = 0;
+        }
         if (fpslog && t - fps_t > 5) { fprintf(stderr, "nexxvis: %.1f fps (%s)\n", fps_n / (t - fps_t), g_nviz ? g_viz[cur].name : "-"); fps_t = t; fps_n = 0; }
     }
 

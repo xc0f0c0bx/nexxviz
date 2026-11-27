@@ -395,14 +395,18 @@ void mainImage(out vec4 c, in vec2 p) {
     col += vec3(1.0, 0.92, 0.65) * crown * 0.80;
     col += vec3(1.0, 0.95, 0.78) * halo * 0.90;
 
-    /* polished sheen: a moving specular highlight and a white hot core */
+    /* polished sheen: a moving specular highlight and a white hot core.
+       Integer powers use repeated squaring instead of pow() */
     vec2 hl = 0.55 * vec2(cos(t * 0.11 + 0.7), sin(t * 0.11 + 0.7));
-    float sheen = pow(clamp(1.0 - length(q - hl) / 0.95, 0.0, 1.0), 5.0);
+    float sv = clamp(1.0 - length(q - hl) / 0.95, 0.0, 1.0);
+    float s2 = sv * sv, s4 = s2 * s2;
+    float sheen = s4 * sv;                          /* sv^5 */
     float gloss = seals + hept + pent + star + crown + vnodes
                 + vortex * 0.6 + line * 0.5;
     gloss = clamp(gloss, 0.0, 1.0);
     col += vec3(1.0, 0.97, 0.90) * sheen * gloss * (0.40 + 0.25 * beat);
-    col += vec3(1.0) * pow(gloss, 8.0) * 0.30;
+    float g2 = gloss * gloss, g4 = g2 * g2, g8 = g4 * g4;
+    col += vec3(1.0) * g8 * 0.30;                   /* gloss^8 */
 
     /* break-out shockwave */
     col += vec3(0.95, 0.86, 0.58) * brk * 0.10

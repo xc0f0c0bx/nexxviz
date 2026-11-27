@@ -2,9 +2,9 @@
 #define NEXXVIS_BEATDETECT_H
 
 /* Spectral-flux onset + tempo/phase detector for the PipeWire fallback.
- * One update per display frame with the low FFT bins (48 kHz / 2048 FFT). */
+ * One update per analysis tick with the low FFT bins (48 kHz / 8192 FFT). */
 
-#define BD_MAX_BINS 64
+#define BD_MAX_BINS 256
 #define BD_FLUX_HIST 100
 #define BD_MAX_ONSETS 64
 #define BD_IOI_BINS 176

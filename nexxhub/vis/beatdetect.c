@@ -65,6 +65,10 @@ void bd_update(BeatDetector *d, const float *mag, int bins, double t) {
     }
     memcpy(d->prev_log, logmag, (size_t)bins * sizeof(float));
     d->have_prev = 1;
+    /* The flux is a per-update difference.  Normalize it to a 70 ms frame
+       so the fixed floor and the history mean the same at any update rate
+       (14 Hz renderer or 50 Hz analysis thread). */
+    if (dt > 0.001 && dt < 0.2) flux *= (float)(0.07 / dt);
     push_flux(d, flux);
 
     /* adaptive threshold: rolling median + 0.35 * MAD */
