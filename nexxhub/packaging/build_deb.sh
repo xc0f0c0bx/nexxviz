@@ -5,7 +5,7 @@ set -eu
 
 SRC=${SRC:-$HOME/src/nexxhub}
 PKG=nexxhub-visualizer
-VER=0.5.33
+VER=0.5.34
 ROOT=${ROOT:-/tmp/$PKG-$VER}
 DEB=/tmp/${PKG}_${VER}_arm64.deb
 REPO=${REPO:-/srv/nexxvis-repo}
@@ -36,7 +36,7 @@ EOF
 
 cat > "$ROOT/DEBIAN/control" <<'EOF'
 Package: nexxhub-visualizer
-Version: 0.5.33
+Version: 0.5.34
 Architecture: arm64
 Maintainer: nexxxen <cxfxcxb@localhost>
 Depends: python3, python3-pil, nginx
