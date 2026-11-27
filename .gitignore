@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# build products
+.build/
+build/
+*.o
+*.ppm
+nexxhub/vis/test_beatdetect
+
+# Python
+__pycache__/
+*.pyc
+
+# local previews and captures
+.playwright-mcp/
+
+# workspace material that is not part of nexxviz
+/backups/
+/dsp-tools/
+/windows/
+/STATE.md
+/PLAN-192k-dsp.md
+/PROMPT-*.md
+/nexxbeat-recon/*.log
+Bildschirmaufnahme*.mov
+/*.mov
+/*.png
+/*.jpg
+/d_*
+/1 wa*

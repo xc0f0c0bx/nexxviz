@@ -1,0 +1,18 @@
+[Unit]
+Description=nexxxen visual genome evolver (genetic algorithm)
+After=nexxbeatd.service
+Wants=nexxbeatd.service
+
+[Service]
+Type=simple
+User=cxfxcxb
+WorkingDirectory=/home/cxfxcxb
+Environment=PYTHONUNBUFFERED=1
+Environment=NB_SPECTRUM=/run/nexxbeat/spectrum
+Environment=NB_GENOME=/run/nexxbeat/genome
+ExecStart=/usr/bin/python3 /usr/local/lib/nexxhub/evolve.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+# nexxxen: Samsung TV remote (HDMI-CEC) -> keyboard input for Kodi and the nexxhub launcher menu.
+# Runs next to cec-volume.service (user unit, keeps the volume keys + Audio System registration).
+[Unit]
+Description=nexxxen CEC remote bridge (Samsung remote -> Kodi / launcher menu)
+After=nexxhub.service systemd-modules-load.service
+
+[Service]
+Type=simple
+ExecStartPre=-/sbin/modprobe uinput
+ExecStart=/usr/bin/python3 /usr/local/lib/nexxhub/cec_remote.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

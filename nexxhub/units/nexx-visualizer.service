@@ -1,0 +1,36 @@
+# nexxxen screen mode, started/stopped by nexxhub.service (only one screen mode owns tty1/HDMI at a time)
+[Unit]
+Description=nexxxen GLSL audio visualizer + launcher menu (HDMI)
+After=systemd-user-sessions.service user@1000.service network-online.target getty@tty1.service
+Wants=user@1000.service
+After=dev-dri-by\x2dpath-platform\x2dgpu\x2dcard.device
+Wants=dev-dri-by\x2dpath-platform\x2dgpu\x2dcard.device
+Conflicts=getty@tty1.service moonlight-kiosk.service nexx-artemis.service nexx-kodi.service nexx-retroarch.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+Type=simple
+User=cxfxcxb
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+WorkingDirectory=/home/cxfxcxb
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=LANG=en_GB.UTF-8
+Environment=NV_CONNECTOR=HDMI-A-2
+Environment=NV_MODE=2560x1440@60
+Environment=NV_SCALE=0.65
+Environment=NV_CYCLE=300
+Environment=NV_SINK=speakereq2x2
+Environment=NV_BEAT_FILE=/run/nexxbeat/beat
+Environment=NV_CDJ_CARD=/run/nexxbeat/cdj.rgba
+ExecStart=/usr/local/bin/nexxvis
+Restart=on-failure
+RestartSec=3

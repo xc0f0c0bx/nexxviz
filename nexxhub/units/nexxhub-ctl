@@ -1,0 +1,4 @@
+#!/bin/sh
+# usage: nexxhub-ctl vis|artemis|kodi|retroarch|menu|reload
+[ -n "$1" ] || { echo "usage: $0 vis|artemis|kodi|retroarch|menu|reload" >&2; exit 2; }
+echo "$1" > /run/nexxhub/cmd

@@ -1,0 +1,29 @@
+# nexxxen screen mode, started/stopped by nexxhub.service (only one screen mode owns tty1/HDMI at a time)
+[Unit]
+Description=nexxxen Kodi media center
+After=systemd-user-sessions.service user@1000.service network-online.target getty@tty1.service
+Wants=user@1000.service
+After=dev-dri-by\x2dpath-platform\x2dgpu\x2dcard.device
+Wants=dev-dri-by\x2dpath-platform\x2dgpu\x2dcard.device
+Conflicts=getty@tty1.service moonlight-kiosk.service nexx-visualizer.service nexx-artemis.service nexx-retroarch.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+Type=simple
+User=cxfxcxb
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+WorkingDirectory=/home/cxfxcxb
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=LANG=en_GB.UTF-8
+ExecStart=/usr/bin/kodi --standalone --windowing=gbm --audio-backend=pulseaudio
+Restart=no
+TimeoutStopSec=20

@@ -1,0 +1,19 @@
+[Unit]
+Description=nexxxen Pro DJ Link beat daemon (OPUS-QUAD over Wi-Fi)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cxfxcxb
+RuntimeDirectory=nexxbeat
+RuntimeDirectoryMode=0755
+WorkingDirectory=/home/cxfxcxb
+Environment=PYTHONUNBUFFERED=1
+Environment=NB_RUN_DIR=/run/nexxbeat
+ExecStart=/usr/bin/python3 /usr/local/lib/nexxhub/nexxbeatd.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

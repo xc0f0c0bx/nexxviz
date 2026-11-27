@@ -1,0 +1,16 @@
+[Unit]
+Description=nexxxen visual story controller (dimension arc)
+After=nexxbeatd.service
+Wants=nexxbeatd.service
+
+[Service]
+Type=simple
+User=cxfxcxb
+Environment=NB_SPECTRUM=/run/nexxbeat/spectrum
+Environment=NB_STORY=/run/nexxbeat/story
+ExecStart=/usr/bin/python3 /usr/local/lib/nexxhub/story.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

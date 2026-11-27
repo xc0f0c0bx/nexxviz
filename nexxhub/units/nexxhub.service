@@ -1,0 +1,17 @@
+# nexxxen screen hub: visualizer by default, launcher menu when the Xbox controller connects,
+# Artemis / Kodi / RetroArch on request, back to the visualizer after 20 min (games) / 200 min (Kodi)
+# without a controller. Config: /etc/nexxhub.json. Undo: systemctl disable --now nexxhub; see /usr/local/lib/nexxhub/README
+[Unit]
+Description=nexxxen screen hub (visualizer / Artemis / Kodi / RetroArch)
+After=systemd-user-sessions.service user@1000.service bluetooth.target
+Wants=user@1000.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/lib/nexxhub/nexxhub.py
+ExecStopPost=-/bin/systemctl stop nexx-artemis.service nexx-kodi.service nexx-retroarch.service
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

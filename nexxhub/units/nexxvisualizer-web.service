@@ -1,0 +1,16 @@
+[Unit]
+Description=nexxxen visualizer selector (HiFiBerry web UI)
+After=network.target
+
+[Service]
+Type=simple
+User=cxfxcxb
+Environment=NV_SHADER_DIR=/usr/local/share/nexxvis/shaders
+Environment=NV_SHADER_SELECT=/var/lib/nexxhub/visualizer
+Environment=NV_WEBUI_PORT=8099
+ExecStart=/usr/bin/python3 /usr/local/lib/nexxhub/webui.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
