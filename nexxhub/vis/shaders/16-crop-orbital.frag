@@ -68,6 +68,7 @@ void mainImage(out vec4 c, in vec2 p) {
     col += vec3(1.0, 0.95, 0.78) * tv.b * (0.35 + 0.25 * mid);
     col += vec3(1.0, 0.82, 0.55) * exp(-r * 12.0) * (0.55 + 0.55 * beat);
     col += vec3(1.0, 0.62, 0.22) * exp(-abs(r - Rn * 1.6) * 70.0) * 0.25;
+    col += vec3(1.0, 0.65, 0.30) * exp(-r * 3.2) * 0.07;
 
     /* three inclined orbital tracks: the baked crown rings, squashed by
        their inclination and turned in the screen plane */
@@ -143,6 +144,8 @@ void mainImage(out vec4 c, in vec2 p) {
         float scale = 1.0 / (1.0 - 0.30 * depth);
         float rr = (0.022 + 0.014 * fract(fj * 0.6180339 + 0.5)) * scale;
         float lum = 0.75 + 0.25 * (0.5 + 0.5 * depth);
+        vec3 bc = hueShift(vec3(1.0, 0.55, 0.15),
+                           6.2831853 * fract(fj * 0.6180339 + 0.1));
         /* the body's own inclined orbit, very faint */
         float oe = length(vec2(q.x, q.y / ci)) - Rorb;
         if (abs(oe) < 0.008)
@@ -161,13 +164,19 @@ void mainImage(out vec4 c, in vec2 p) {
         float dist = length(d);
         if (abs(dist - rr) < rr * 0.6 + nvAA * 2.0) {
             float body = nvLine(sdRing(q, pos, rr), 0.0022);
-            vec3 bc = hueShift(vec3(1.0, 0.55, 0.15),
-                               6.2831853 * fract(fj * 0.6180339 + 0.1));
             col += (bc * 0.85 + 0.15) * body * lum * (0.75 + 0.25 * beat);
             col += bc * exp(-dist * 60.0 / scale) * 0.11 * lum;
             vec2 hp = pos + vec2(rr * 0.30, rr * 0.30);
             col += vec3(1.0, 0.98, 0.92)
                  * exp(-length(q - hp) * 150.0 / scale) * lum * 1.2;
+        }
+        /* a precious little ring around the larger bodies */
+        if (rr > 0.030) {
+            vec2 rp = q - pos;
+            rp.y /= 0.55;
+            float rd = length(rp) - rr * 1.8;
+            if (abs(rd) < rr * 0.6)
+                col += bc * nvLine(rd, rr * 0.10) * 0.55 * lum;
         }
         /* a faint trail behind the body, squashed into the orbit plane */
         float tr = length(vec2(q.x - pos.x, (q.y - pos.y) / ci));
