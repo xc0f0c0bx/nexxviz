@@ -25,13 +25,13 @@ This Node.js script will connect to the OPUS-QUAD, then relay the [CDJ status pa
 
 ```sh
 npm install
-npm start -- --interfaceip=192.168.112.173 --mac=00:e0:4c:65:3b:75 --devicename="macbook pro"
+npm start -- --interfaceip=<interface-ip> --mac=aa:bb:cc:dd:ee:ff --devicename="macbook pro"
 ```
 
 | Argument        | Description                                                 | Example             |
 | --------------- | ----------------------------------------------------------- | ------------------- |
-| `--interfaceip` | The IP address of the interface                             | `192.168.112.173`   |
-| `--mac`         | The MAC address of the device                               | `00:e0:4c:65:3b:75` |
+| `--interfaceip` | The IP address of the interface                             | `<interface-ip>`   |
+| `--mac`         | The MAC address of the device                               | `aa:bb:cc:dd:ee:ff` |
 | `--devicename`  | The name of the device. This does not affect functionality. | `"macbook pro"`     |
 
 ## Timecode syncing

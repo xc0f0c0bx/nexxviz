@@ -7,6 +7,7 @@ every packet the unit returns on UDP 50002 for a bounded time.
 Run on the Pi: python3 opusq_spike.py [seconds] [unit-ip]
 """
 import binascii
+import os
 import select
 import socket
 import sys
@@ -15,10 +16,11 @@ import time
 HDR = bytes([0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6D, 0x4A, 0x4F, 0x4C])
 NAME = "rekordbox"
 CLIENT = "nexxxen"
-IP = "192.168.1.199"
-MAC = bytes.fromhex("dca632350646")
-BROADCAST = "192.168.1.255"
-UNIT_IP = sys.argv[2] if len(sys.argv) > 2 else "192.168.1.113"
+IP = os.environ.get("NB_PI_IP", "127.0.0.1")
+MAC = bytes.fromhex(os.environ.get("NB_PI_MAC", "aabbccddeeff"))
+BROADCAST = os.environ.get("NB_BROADCAST", "255.255.255.255")
+UNIT_IP = (sys.argv[2] if len(sys.argv) > 2
+           else os.environ.get("NB_DECK_IP", "255.255.255.255"))
 DURATION = int(sys.argv[1]) if len(sys.argv) > 1 else 90
 LOG = "/tmp/opusq_spike.log"
 

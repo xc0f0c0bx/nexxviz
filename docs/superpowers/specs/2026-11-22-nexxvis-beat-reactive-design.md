@@ -74,8 +74,8 @@ connected to the music whether the source is the Pi or the DJ deck.
   `/run/nexxhub/nowplaying.rgba` (a Pillow-rendered card from
   `nowplaying.py`). It hides the card while the menu is visible and fades it
   based on file presence.
-- The Pi's `wlan0` is 192.168.1.199/24; the OPUS-QUAD is on the same Wi-Fi
-  (seen at 192.168.1.113, device name `OPUS-QUAD`). The Pi has no ALSA
+- The Pi's `wlan0` is <pi-ip>/24; the OPUS-QUAD is on the same Wi-Fi
+  (seen at <deck-ip>, device name `OPUS-QUAD`). The Pi has no ALSA
   capture device; the DSP's optical input is not visible to ALSA/PipeWire.
 - The Pi has no Java, pip, `pyrekordbox` or SQLCipher. System Python has
   Pillow and numpy; gcc, EGL/GLES/GBM/DRM dev libs are installed.
@@ -657,7 +657,7 @@ capture. If a firmware update removes the counter, the BPM-only clock remains
 - **Unit tests (Pi):** `python3 -m unittest test_djl_protocol test_beatclock test_card test_nexxbeatd` → **53 pass**.
 - **C tests:** `test_beatstate` → ok. `test_beatdetect` → clicks 120.00 BPM, conf 1.00, prediction error 0.0 ms; noise conf 0.00.
 - **End-to-end simulator:** `python3 test_integration.py` → **PASS** (DJ playing → pause → 180 BPM relock ≤2 s → track jump 1217→1218 → idle).
-- **Live OPUS-QUAD (192.168.1.113):** deck 1 playing track 1089 → state line `2 1 173.91 0.8487 0.84 1 … 1089`; `cdj.rgba` present and the visualizer logged `CDJ card shown`.
+- **Live OPUS-QUAD (<deck-ip>):** deck 1 playing track 1089 → state line `2 1 173.91 0.8487 0.84 1 … 1089`; `cdj.rgba` present and the visualizer logged `CDJ card shown`.
 - **Audio fallback:** 120 BPM click track → `source=1 bpm 121.8–123.7 conf 0.31–0.50`; silence/noise → `source=0`.
 - **Install/rollback:** install → `nexxbeatd` active, `NV_BEAT_FILE`/`NV_CDJ_CARD` in the unit; rollback → original binary (`sha256 869a5a97…`) + the original 3 shaders, daemon and unit removed; reinstall → all 5 shaders, daemon re-joined the OPUS.
 - **Pending:** on-TV beat-offset tuning, a 5-minute mix capture, and reboot/regression confirmation (need the user).
@@ -672,6 +672,6 @@ capture. If a firmware update removes the counter, the BPM-only clock remains
 ### Reboot regression (2026-11-22 00:14)
 
 Clean reboot (~22 s). `nexxbeatd` active+enabled, `nexx-visualizer` active,
-`/run/nexxbeat` created, daemon re-joined the OPUS-QUAD at 192.168.1.113 and
+`/run/nexxbeat` created, daemon re-joined the OPUS-QUAD at <deck-ip> and
 saw all four decks, all five shaders loaded, state idle (no deck playing),
 69.1 °C, `get_throttled=0x0`. No manual steps.

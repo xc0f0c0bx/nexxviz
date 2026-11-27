@@ -140,7 +140,7 @@ from djl_protocol import *
 
 class TestPackets(unittest.TestCase):
     def test_keepalive_layout(self):
-        mac = bytes.fromhex("dca632350646"); ip = "192.168.1.199"
+        mac = bytes.fromhex("aabbccddeeff"); ip = "<pi-ip>"
         p = keepalive(mac, ip)
         self.assertEqual(len(p), 54)
         self.assertEqual(p[:10], HEADER)

@@ -17,8 +17,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 class TestPackets(unittest.TestCase):
     def test_keepalive_layout(self):
-        mac = bytes.fromhex("dca632350646")
-        ip = "192.168.1.199"
+        mac = bytes.fromhex("aabbccddeeff")
+        ip = "192.0.2.10"
         p = keepalive(mac, ip)
         self.assertEqual(len(p), 54)
         self.assertEqual(p[:10], HEADER)
@@ -26,7 +26,7 @@ class TestPackets(unittest.TestCase):
         self.assertEqual(p[12:32].rstrip(b"\0"), b"rekordbox")
         self.assertEqual(p[32:38], bytes([1, 3, 0, 0x36, 0x17, 1]))
         self.assertEqual(p[38:44], mac)
-        self.assertEqual(p[44:48], bytes([192, 168, 1, 199]))
+        self.assertEqual(p[44:48], bytes([192, 0, 2, 10]))
         self.assertEqual(p[48:54], bytes([4, 1, 0, 0, 4, 8]))
 
     def test_send_cdj_layout(self):
